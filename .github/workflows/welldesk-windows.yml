@@ -68,6 +68,8 @@ jobs:
       uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
       with:
         submodules: recursive
+    - name: Check WellDesk UI assets
+      run: python3 tools/check-welldesk-assets.py
     - name: Restore bridge files
       uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
       with:
@@ -137,6 +139,12 @@ jobs:
       shell: bash
     - name: Build rustdesk
       run: |
+        Push-Location flutter
+        flutter pub get
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings lib/common/widgets/welldesk_folder_tree.dart
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        Pop-Location
         # Windows: build RustDesk
         # --hwcodec is shared by all Windows targets; per-target extras (e.g. --vram) come from the matrix
         python3 .\build.py --portable --flutter --skip-portable-pack --hwcodec ${{ matrix.job.build-args }}

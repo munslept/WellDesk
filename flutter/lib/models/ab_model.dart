@@ -84,6 +84,10 @@ class AbModel {
         getInitPeers: () => currentAbPeers,
         loadEvent: LoadEvent.addressBook);
     if (desktopType == DesktopType.main) {
+      Timer.periodic(const Duration(minutes: 10), (_) async {
+        if (!gFFI.userModel.isLogin || _syncFromRecentLock) return;
+        await pullAb(force: ForcePullAb.listAndCurrent, quiet: true);
+      });
       Timer.periodic(Duration(milliseconds: 500), (timer) async {
         if (_timerCounter++ % 6 == 0) {
           if (!gFFI.userModel.isLogin) return;

@@ -58,3 +58,9 @@ libsciter.dylib
 flutter/web/
 # libdrmtap is cloned at build time by build.py (not a submodule)
 /third_party/libdrmtap/
+
+# WellDesk: track the resources required by the Flutter UI and Windows packer.
+!**/*.png
+!**/*.svg
+!**/*.jpg
+!**/*.ico

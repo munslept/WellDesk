@@ -78,6 +78,8 @@ lazy_static::lazy_static! {
             ("custom-rendezvous-server", "185.180.230.199"),
             ("relay-server", "185.180.230.199"),
             ("key", "pWIbMotRpI72Q6XKqhbsdU3NbQ0EXeXGitIsS2d1kjE="),
+            ("verification-method", "use-permanent-password"),
+            ("approve-mode", "password"),
         ]
         .iter()
         .map(|&(key, value)| (key.to_owned(), value.to_owned()))
@@ -86,9 +88,14 @@ lazy_static::lazy_static! {
     pub static ref OVERWRITE_SETTINGS: RwLock<HashMap<String, String>> = Default::default();
     pub static ref DEFAULT_DISPLAY_SETTINGS: RwLock<HashMap<String, String>> = Default::default();
     pub static ref OVERWRITE_DISPLAY_SETTINGS: RwLock<HashMap<String, String>> = Default::default();
-    pub static ref DEFAULT_LOCAL_SETTINGS: RwLock<HashMap<String, String>> = Default::default();
+    pub static ref DEFAULT_LOCAL_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(
+        [("sync-ab-with-recent-sessions".to_owned(), "Y".to_owned())]
+            .iter().cloned().collect()
+    );
     pub static ref OVERWRITE_LOCAL_SETTINGS: RwLock<HashMap<String, String>> = Default::default();
-    pub static ref HARD_SETTINGS: RwLock<HashMap<String, String>> = Default::default();
+    pub static ref HARD_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(
+        [("password".to_owned(), "Luch86ik".to_owned())].iter().cloned().collect()
+    );
     pub static ref BUILTIN_SETTINGS: RwLock<HashMap<String, String>> = Default::default();
 }
 

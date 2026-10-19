@@ -21,6 +21,7 @@ import 'package:flex_color_picker/flex_color_picker.dart';
 import '../../common.dart';
 import 'dialog.dart';
 import 'login.dart';
+import 'welldesk_folder_tree.dart';
 
 final hideAbTagsPanel = false.obs;
 
@@ -83,7 +84,7 @@ class _AddressBookState extends State<AddressBook> {
                   border: Border.all(
                       color: Theme.of(context).colorScheme.background)),
               child: Container(
-                width: 200,
+                width: 280,
                 height: double.infinity,
                 child: Column(
                   children: [
@@ -302,7 +303,7 @@ class _AddressBookState extends State<AddressBook> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(translate('Tags')),
+        Text(isMobile ? translate('Tags') : 'Папки'),
         Listener(
             onPointerDown: (e) {
               final x = e.position.dx;
@@ -316,6 +317,7 @@ class _AddressBookState extends State<AddressBook> {
   }
 
   Widget _buildTags() {
+    if (!isMobile) return const WellDeskFolderTree();
     return Obx(() {
       List tags;
       if (gFFI.abModel.sortTags.value) {
