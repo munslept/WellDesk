@@ -10,7 +10,7 @@ required = {
     'flutter/windows/runner/resources/app_icon.ico',
 }
 for source in (root / 'flutter/lib').rglob('*.dart'):
-    for asset in re.findall(r'''["'](assets/[^"'\n]+\.(?:svg|png|ttf))["']''', source.read_text()):
+    for asset in re.findall(r'''["'](assets/[^"'\n]+\.(?:svg|png|ttf))["']''', source.read_text(encoding="utf-8")):
         if '$' not in asset:
             required.add('flutter/' + asset)
 missing = sorted(path for path in required if not (root / path).is_file())
