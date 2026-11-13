@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import '../../common.dart';
+import '../../common.dart' hide Dialog;
 import '../../models/platform_model.dart';
 import '../../utils/http_service.dart' as http;
 
