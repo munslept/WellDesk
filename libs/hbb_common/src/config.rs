@@ -77,7 +77,7 @@ lazy_static::lazy_static! {
         [
             ("custom-rendezvous-server", "185.180.230.199"),
             ("relay-server", "185.180.230.199"),
-            ("key", "pWIbMotRpI72Q6XKqhbsdU3NbQ0EXeXGitIsS2d1kjE="),
+            ("key", "xvcplPjxuYc8CkzFHTehobJf8tVniYknAOKJpRPNR3I="),
             ("verification-method", "use-permanent-password"),
             ("approve-mode", "password"),
         ]

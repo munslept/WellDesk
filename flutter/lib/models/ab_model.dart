@@ -1419,11 +1419,12 @@ class Ab extends BaseAb {
     if (!await _fetchPeers(tmpPeers, quiet: quiet)) {
       ret = false;
     }
-    peers.value = tmpPeers;
     List<AbTag> tmpTags = [];
     if (!await _fetchTags(tmpTags, quiet: quiet)) {
       ret = false;
     }
+    if (!ret) return false;
+    peers.value = tmpPeers;
     tags.value = tmpTags.map((e) => e.name).toList();
     Map<String, int> tmpTagColors = {};
     for (var t in tmpTags) {

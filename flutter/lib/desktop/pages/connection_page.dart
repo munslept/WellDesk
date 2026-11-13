@@ -15,6 +15,7 @@ import 'package:window_manager/window_manager.dart';
 import 'package:flutter_hbb/models/peer_model.dart';
 
 import '../../common.dart';
+import '../widgets/welldesk_book.dart';
 import '../../common/formatter/id_formatter.dart';
 import '../../common/widgets/peer_tab_page.dart';
 import '../../common/widgets/autocomplete.dart';
@@ -316,6 +317,10 @@ class _ConnectionPageState extends State<ConnectionPage>
             ).marginOnly(top: 22),
             SizedBox(height: 12),
             Divider().paddingOnly(right: 12),
+            Align(alignment: Alignment.centerLeft, child: TextButton.icon(
+              onPressed: () => showDialog(context: context, builder: (_) => const WellDeskBook()),
+              icon: const Icon(Icons.account_tree_outlined), label: const Text('Дерево адресной книги'),
+            )),
             Expanded(child: PeerTabPage()),
           ],
         ).paddingOnly(left: 12.0)),
