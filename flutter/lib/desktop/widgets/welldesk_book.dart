@@ -354,12 +354,6 @@ class _WellDeskBookState extends State<WellDeskBook> {
           selected: folder == '*',
           onTap: () => setState(() => folder = '*')),
       ...branches('', paths),
-      ListTile(
-          dense: true,
-          leading: const Icon(Icons.folder_off_outlined),
-          title: const Text('Без папки'),
-          selected: folder == '',
-          onTap: () => setState(() => folder = '')),
     ]);
     final deviceList = peers.isEmpty
         ? Center(child: Text(query.isEmpty ? 'В этой папке нет компьютеров' : 'Ничего не найдено'))
