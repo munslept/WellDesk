@@ -554,6 +554,9 @@ class _PeerTabPageState extends State<PeerTabPage>
 
   List<Widget> _landscapeRightActions(BuildContext context) {
     final model = Provider.of<PeerTabModel>(context);
+    if (isDesktop && model.currentTab == PeerTabIndex.ab.index) {
+      return [];
+    }
     return [
       const PeerSearchBar().marginOnly(right: 13),
       _createRefresh(
@@ -578,6 +581,9 @@ class _PeerTabPageState extends State<PeerTabPage>
 
   List<Widget> _portraitRightActions(BuildContext context) {
     final model = Provider.of<PeerTabModel>(context);
+    if (isDesktop && model.currentTab == PeerTabIndex.ab.index) {
+      return [];
+    }
     final screenWidth = MediaQuery.of(context).size.width;
     final leftIconSize = Theme.of(context).iconTheme.size ?? 24;
     final leftActionsSize =
