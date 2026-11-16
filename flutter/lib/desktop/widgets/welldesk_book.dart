@@ -5,7 +5,7 @@ import '../../common.dart' hide Dialog;
 import '../../models/platform_model.dart';
 import '../../utils/http_service.dart' as http;
 
-/// A separate server-backed view; the existing peer tabs remain available.
+/// Server-backed address book shown directly in the desktop address-book tab.
 class WellDeskBook extends StatefulWidget {
   const WellDeskBook({Key? key}) : super(key: key);
   @override
@@ -77,7 +77,10 @@ class _WellDeskBookState extends State<WellDeskBook> {
       final profiles = await request('/api/console/books?pageSize=500');
       final nextBooks = profiles['data'] as List;
       if (!nextBooks.any((b) => b['guid'] == guid)) {
-        guid = nextBooks.isEmpty ? null : nextBooks.first['guid'];
+        final personal = nextBooks.where((b) => b['personal'] == true);
+        guid = nextBooks.isEmpty
+            ? null
+            : (personal.isNotEmpty ? personal.first : nextBooks.first)['guid'];
       }
       final nextBook =
           guid == null ? null : await request('/api/book?guid=$guid');
@@ -85,6 +88,9 @@ class _WellDeskBookState extends State<WellDeskBook> {
       setState(() {
         books = nextBooks;
         book = nextBook == null ? null : Map<String, dynamic>.from(nextBook);
+        if (folder != '*' && folder.isNotEmpty && !folders.contains(folder)) {
+          folder = '*';
+        }
         error = '';
       });
     } catch (e) {
@@ -326,140 +332,154 @@ class _WellDeskBookState extends State<WellDeskBook> {
         paths.add(parts.take(i).join('/'));
       }
     }
+    final query = search.trim().toLowerCase();
     final peers = (book?['data']['peers'] as List? ?? [])
         .where((p) =>
-            (folder == '*' || p['folder'] == folder) &&
-            '${p['id']} ${p['alias']} ${p['note']}'
+            (query.isNotEmpty || folder == '*' || p['folder'] == folder) &&
+            '${p['id']} ${p['alias']} ${p['note']} ${p['folder']}'
                 .toLowerCase()
-                .contains(search.toLowerCase()))
-        .toList();
-    return Dialog(
-        child: SizedBox(
-            width: 1100,
-            height: 720,
-            child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(children: [
-                  Row(children: [
-                    const Expanded(
-                        child: Text('Адресная книга welldesk',
-                            style: TextStyle(fontSize: 20))),
+                .contains(query))
+        .toList()
+      ..sort((a, b) =>
+          '${a['alias'] == '' ? a['id'] : a['alias']}'
+              .toLowerCase()
+              .compareTo('${b['alias'] == '' ? b['id'] : b['alias']}'
+                  .toLowerCase()));
+
+    final folderTree = ListView(children: [
+      ListTile(
+          dense: true,
+          leading: const Icon(Icons.computer_outlined),
+          title: const Text('Все компьютеры'),
+          selected: folder == '*',
+          onTap: () => setState(() => folder = '*')),
+      ...branches('', paths),
+      ListTile(
+          dense: true,
+          leading: const Icon(Icons.folder_off_outlined),
+          title: const Text('Без папки'),
+          selected: folder == '',
+          onTap: () => setState(() => folder = '')),
+    ]);
+    final deviceList = peers.isEmpty
+        ? Center(child: Text(query.isEmpty ? 'В этой папке нет компьютеров' : 'Ничего не найдено'))
+        : ListView.builder(
+            itemCount: peers.length,
+            itemBuilder: (ctx, i) {
+              final p = Map<String, dynamic>.from(peers[i]);
+              final alias = '${p['alias'] ?? ''}'.trim();
+              final note = '${p['note'] ?? ''}'.trim();
+              return ListTile(
+                  dense: true,
+                  title: Text(alias.isEmpty ? '${p['id']}' : alias,
+                      overflow: TextOverflow.ellipsis),
+                  subtitle: Text([
+                    '${p['id']}',
+                    if (query.isNotEmpty && '${p['folder']}'.isNotEmpty)
+                      '${p['folder']}',
+                    if (note.isNotEmpty) note,
+                  ].join(' · '), overflow: TextOverflow.ellipsis),
+                  trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                    if (writable)
+                      IconButton(
+                          tooltip: 'Изменить / переместить',
+                          onPressed: busy ? null : () => editPeer(p),
+                          icon: const Icon(Icons.edit_outlined, size: 19)),
                     IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close))
-                  ]),
-                  Wrap(
-                      spacing: 8,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        DropdownButton<String>(
-                            value: guid,
-                            hint: const Text('Войдите в аккаунт'),
-                            items: books
-                                .map((b) => DropdownMenuItem<String>(
-                                    value: b['guid'],
-                                    child: Text(b['personal'] == true
-                                        ? 'Личная книга'
-                                        : b['name'])))
-                                .toList(),
-                            onChanged: busy
-                                ? null
-                                : (v) {
-                                    setState(() {
-                                      guid = v;
-                                      book = null;
-                                      folder = '*';
-                                    });
-                                    reload();
-                                  }),
-                        TextButton(
-                            onPressed: busy ? null : reload,
-                            child: const Text('Обновить')),
-                        if (writable) ...[
-                          TextButton(
-                              onPressed: busy ? null : () => editFolder(),
-                              child: const Text('Создать папку')),
-                          TextButton(
-                              onPressed: busy ? null : () => editPeer(),
-                              child: const Text('Добавить устройство')),
-                          if (folder != '*' && folder.isNotEmpty) ...[
-                            TextButton(
-                                onPressed: busy
-                                    ? null
-                                    : () => editFolder(rename: true),
-                                child:
-                                    const Text('Переименовать / переместить')),
-                            TextButton(
-                                onPressed: busy ? null : deleteFolder,
-                                child: const Text('Удалить папку')),
-                          ],
-                        ],
-                      ]),
-                  if (busy) const LinearProgressIndicator(),
-                  if (error.isNotEmpty)
-                    Text(error, style: const TextStyle(color: Colors.red)),
-                  TextField(
-                      decoration:
-                          const InputDecoration(labelText: 'Поиск устройств'),
-                      onChanged: (v) => setState(() => search = v)),
-                  Expanded(
-                      child: Row(children: [
-                    SizedBox(
-                        width: 250,
-                        child: ListView(children: [
-                          ListTile(
-                              title: const Text('Все устройства'),
-                              selected: folder == '*',
-                              onTap: () => setState(() => folder = '*')),
-                          ListTile(
-                              title: const Text('Без папки'),
-                              selected: folder == '',
-                              onTap: () => setState(() => folder = '')),
-                          ...branches('', paths),
-                        ])),
-                    const VerticalDivider(),
-                    Expanded(
-                        child: ListView.builder(
-                            itemCount: peers.length,
-                            itemBuilder: (ctx, i) {
-                              final p = Map<String, dynamic>.from(peers[i]);
-                              return ListTile(
-                                  title: Text(
-                                      '${p['alias'] == '' ? p['id'] : p['alias']} · ${p['id']}'),
-                                  subtitle:
-                                      Text('${p['folder']}  ${p['note']}'),
-                                  trailing: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        if (writable)
-                                          IconButton(
-                                              tooltip: 'Изменить / переместить',
-                                              onPressed: busy
-                                                  ? null
-                                                  : () => editPeer(p),
-                                              icon: const Icon(Icons.edit)),
-                                        IconButton(
-                                            tooltip: 'Подключиться',
-                                            onPressed: () async {
-                                              if (await account() != identity ||
-                                                  !mounted) {
-                                                await reload();
-                                                return;
-                                              }
-                                              connect(context, p['id'],
-                                                  password: p['password'] == ''
-                                                      ? null
-                                                      : p['password'],
-                                                  isSharedPassword:
-                                                      p['password'] != '');
-                                            },
-                                            icon: const Icon(
-                                                Icons.desktop_windows)),
-                                      ]));
-                            }))
-                  ])),
-                  const Text(
-                      'Синхронизация с сервером каждые 15 секунд. Изменения сохраняются сразу.'),
-                ]))));
+                        tooltip: 'Подключиться',
+                        onPressed: () async {
+                          if (await account() != identity || !mounted) {
+                            await reload();
+                            return;
+                          }
+                          final sharedPassword = '${p['password'] ?? ''}';
+                          connect(context, p['id'],
+                              password: sharedPassword.isEmpty
+                                  ? null
+                                  : sharedPassword,
+                              isSharedPassword: sharedPassword.isNotEmpty);
+                        },
+                        icon: const Icon(Icons.desktop_windows_outlined)),
+                  ]));
+            });
+
+    return Padding(
+        padding: const EdgeInsets.fromLTRB(8, 0, 12, 8),
+        child: Column(children: [
+          Row(children: [
+            Flexible(
+                child: DropdownButton<String>(
+                    value: guid,
+                    isExpanded: true,
+                    hint: const Text('Войдите в аккаунт'),
+                    items: books
+                        .map((b) => DropdownMenuItem<String>(
+                            value: b['guid'],
+                            child: Text(b['personal'] == true
+                                ? 'Мои компьютеры'
+                                : '${b['name']}',
+                                overflow: TextOverflow.ellipsis)))
+                        .toList(),
+                    onChanged: busy
+                        ? null
+                        : (v) {
+                            setState(() {
+                              guid = v;
+                              book = null;
+                              folder = '*';
+                            });
+                            reload();
+                          })),
+            IconButton(
+                tooltip: 'Обновить',
+                onPressed: busy ? null : reload,
+                icon: const Icon(Icons.refresh)),
+            if (writable) ...[
+              IconButton(
+                  tooltip: 'Создать папку',
+                  onPressed: busy ? null : () => editFolder(),
+                  icon: const Icon(Icons.create_new_folder_outlined)),
+              IconButton(
+                  tooltip: 'Добавить компьютер',
+                  onPressed: busy ? null : () => editPeer(),
+                  icon: const Icon(Icons.add_to_queue)),
+              if (folder != '*' && folder.isNotEmpty)
+                PopupMenuButton<String>(
+                    tooltip: 'Действия с папкой',
+                    onSelected: (action) => action == 'rename'
+                        ? editFolder(rename: true)
+                        : deleteFolder(),
+                    itemBuilder: (_) => const [
+                          PopupMenuItem(value: 'rename', child: Text('Переименовать папку')),
+                          PopupMenuItem(value: 'delete', child: Text('Удалить папку')),
+                        ]),
+            ],
+          ]),
+          if (busy) const LinearProgressIndicator(minHeight: 2),
+          if (error.isNotEmpty)
+            Text(error, style: const TextStyle(color: Colors.red)),
+          TextField(
+              decoration: InputDecoration(
+                  isDense: true,
+                  prefixIcon: const Icon(Icons.search),
+                  hintText: 'Поиск по ID, имени или заметке',
+                  suffixText: '${peers.length}'),
+              onChanged: (v) => setState(() => search = v)),
+          const SizedBox(height: 8),
+          Expanded(child: LayoutBuilder(builder: (context, size) {
+            if (size.maxWidth < 650) {
+              return Column(children: [
+                SizedBox(height: 120, child: folderTree),
+                const Divider(height: 1),
+                Expanded(child: deviceList),
+              ]);
+            }
+            return Row(children: [
+              SizedBox(width: 210, child: folderTree),
+              const VerticalDivider(width: 12),
+              Expanded(child: deviceList),
+            ]);
+          })),
+        ]));
   }
 }
