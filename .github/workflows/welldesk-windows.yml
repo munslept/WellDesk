@@ -5,6 +5,7 @@ name: Build WellDesk Windows
     branches: [codex-welldesk-tree-build-20261113]
 permissions:
   contents: read
+  actions: read
 env:
   SCITER_RUST_VERSION: '1.75'
   RUST_VERSION: '1.75'
@@ -27,8 +28,6 @@ env:
   UPLOAD_ARTIFACT: 'true'
   SIGN_BASE_URL: '-2'
 jobs:
-  generate-bridge:
-    uses: ./.github/workflows/welldesk-bridge.yml
   build-RustDeskTempTopMostWindow:
     uses: ./.github/workflows/third-party-RustDeskTempTopMostWindow.yml
     strategy:
@@ -47,7 +46,6 @@ jobs:
     name: ${{ matrix.job.target }}
     needs:
     - build-RustDeskTempTopMostWindow
-    - generate-bridge
     runs-on: ${{ matrix.job.os }}
     strategy:
       fail-fast: false
@@ -70,6 +68,19 @@ jobs:
       uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
       with:
         submodules: recursive
+    - name: Verify bridge reuse is limited to this UI update
+      shell: pwsh
+      run: |
+        git fetch --depth=1 origin d5b8c223391812d310a5abfc8160ed4fb64477e1
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot verify bridge source' }
+        $allowed = @(
+          '.github/workflows/welldesk-windows.yml',
+          'flutter/lib/common/widgets/address_book.dart',
+          'tools/sign-welldesk.ps1'
+        )
+        $changed = git diff --name-only d5b8c223391812d310a5abfc8160ed4fb64477e1 HEAD
+        $unexpected = @($changed | Where-Object { $_ -notin $allowed })
+        if ($unexpected.Count -gt 0) { throw "Bridge reuse is unsafe: $($unexpected -join ', ')" }
     - name: Check WellDesk UI assets
       run: python3 tools/check-welldesk-assets.py
     - name: Restore bridge files
@@ -77,6 +88,8 @@ jobs:
       with:
         name: ${{ matrix.job.arch == 'aarch64' && 'bridge-artifact-flutter-3.44' || 'bridge-artifact' }}
         path: ./
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        run-id: 43917853044
     - name: Install LLVM and Clang
       uses: KyleMayes/install-llvm-action@ebc0426251bc40c7cd31162802432c68818ab8f0
       with:
