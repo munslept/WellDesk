@@ -144,7 +144,7 @@ jobs:
         Push-Location flutter
         flutter pub get
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-        flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings lib/common/widgets/welldesk_folder_tree.dart
+        flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings lib/common/widgets/welldesk_folder_tree.dart lib/common/widgets/address_book.dart
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         Pop-Location
         # Windows: build RustDesk
@@ -216,6 +216,13 @@ jobs:
         popd
         mkdir -p ./SignOutput
         mv ./target/release/rustdesk-portable-packer.exe ./SignOutput/WellDesk-${{ env.VERSION }}-${{ matrix.job.arch }}.exe
+    - name: Sign WellDesk installer when certificate is configured
+      if: env.UPLOAD_ARTIFACT == 'true'
+      shell: pwsh
+      env:
+        WELLDESK_SIGN_PFX_BASE64: ${{ secrets.WELLDESK_SIGN_PFX_BASE64 }}
+        WELLDESK_SIGN_PFX_PASSWORD: ${{ secrets.WELLDESK_SIGN_PFX_PASSWORD }}
+      run: ./tools/sign-welldesk.ps1 -File ./SignOutput/WellDesk-${{ env.VERSION }}-${{ matrix.job.arch }}.exe
     - name: Upload WellDesk installer
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
       with:

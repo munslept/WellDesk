@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:convert';
 
 import 'package:bot_toast/bot_toast.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
@@ -22,6 +23,7 @@ import '../../common.dart';
 import 'dialog.dart';
 import 'login.dart';
 import 'welldesk_folder_tree.dart';
+import '../../utils/http_service.dart' as http;
 
 final hideAbTagsPanel = false.obs;
 
@@ -38,12 +40,72 @@ class AddressBook extends StatefulWidget {
 class _AddressBookState extends State<AddressBook> {
   var menuPos = RelativeRect.fill;
 
+  Future<void> _createSharedBook() async {
+    final controller = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Новая адресная книга'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 128,
+          decoration: const InputDecoration(labelText: 'Название'),
+          onSubmitted: (value) => Navigator.pop(dialogContext, value.trim()),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(translate('Cancel'))),
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext, controller.text.trim()),
+              child: Text(translate('Create'))),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (name == null || name.isEmpty || !mounted) return;
+    try {
+      final url = await bind.mainGetApiServer();
+      final response = await http.post(Uri.parse('$url/api/console/books'),
+          headers: {...getHttpHeaders(), 'Content-Type': 'application/json'},
+          body: jsonEncode({'name': name}));
+      if (response.statusCode != 201) {
+        final data = jsonDecode(response.body);
+        throw Exception(data is Map ? data['error'] : 'HTTP ${response.statusCode}');
+      }
+      await gFFI.abModel.pullAb(force: ForcePullAb.listAndCurrent, quiet: false);
+      await gFFI.abModel.setCurrentName(name);
+    } catch (e) {
+      BotToast.showText(text: 'Не удалось создать книгу: $e');
+    }
+  }
+
+  Widget _bookSelector() => Row(children: [
+        Expanded(child: _buildAbDropdown()),
+        IconButton(
+          tooltip: 'Создать адресную книгу',
+          onPressed: _createSharedBook,
+          icon: const Icon(Icons.library_add_outlined),
+        ),
+      ]);
+
   @override
   Widget build(BuildContext context) => Obx(() {
         if (!gFFI.userModel.isLogin) {
           return Center(
               child: ElevatedButton(
                   onPressed: loginDialog, child: Text(translate("Login"))));
+        } else if (gFFI.abModel.abPullError.value.contains('Authentication required')) {
+          return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('Срок входа истёк. Войдите снова.'),
+            ElevatedButton(
+                onPressed: () async {
+                  await gFFI.userModel.reset(resetOther: true);
+                  await loginDialog();
+                },
+                child: Text(translate('Login'))),
+          ]));
         } else if (gFFI.userModel.networkError.isNotEmpty) {
           return netWorkErrorWidget();
         } else {
@@ -88,7 +150,7 @@ class _AddressBookState extends State<AddressBook> {
                 height: double.infinity,
                 child: Column(
                   children: [
-                    _buildAbDropdown(),
+                    _bookSelector(),
                     _buildTagHeader().marginOnly(
                         left: 8.0,
                         right: gFFI.abModel.legacyMode.value ? 8.0 : 0,
@@ -127,7 +189,7 @@ class _AddressBookState extends State<AddressBook> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _buildAbDropdown(),
+                    _bookSelector(),
                     _buildTagHeader().marginOnly(left: 8.0, right: 0),
                     Container(
                       width: double.infinity,
